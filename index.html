@@ -159,7 +159,7 @@ briefEl('briefReplay').onclick=briefSay;
 briefEl('briefNext').onclick=briefAdvance;
 briefEl('briefTour').onclick=()=>{briefType='tour';briefIndex=0;briefCompleted=false;briefDraw();briefSay()};
 briefEl('briefSelf').onclick=()=>{briefType='self';briefIndex=0;briefCompleted=false;briefDraw();briefSay()};
-briefEl('briefBegin').onclick=()=>{if(!briefCompleted)return;closeBriefing();if(briefAutostart)originalStart()};
+briefEl('briefBegin').onclick=()=>{if(!briefCompleted)return;const shouldStart=briefAutostart;briefAutostart=false;closeBriefing();if(shouldStart)originalStart()};
 </script>
 
 <style>
@@ -188,6 +188,25 @@ const oldClose=closeBriefing;closeBriefing=function(){oldClose();document.getEle
 const vehicle=document.getElementById('vehicle');function update(){box.style.display=userRole==='professional'&&vehicle.value==='minibus'?'block':'none'};
 vehicle.addEventListener('change',()=>{update();if(userRole==='professional'&&vehicle.value==='minibus')box.scrollIntoView({behavior:'smooth',block:'nearest'})});
 document.querySelectorAll('.role').forEach(b=>b.addEventListener('click',()=>setTimeout(update,0)));update();
+})();
+</script>
+
+<section class="panel" id="vehicleSafetyPanel"><h2>🚐 Kjøretøy og trafikkregler</h2><p class="small">Lagre kjøretøyets faktiske mål. Sikkerhetsinformasjonen er veiledende – denne versjonen beregner IKKE ruter rundt lave broer.</p>
+<div class="vehicle-grid"><label>Type<select id="vType"><option value="car">Personbil</option><option value="camper">Bobil</option><option value="minibus">Minibuss</option><option value="bus">Buss</option><option value="truck">Lastebil</option><option value="motorcycle">Motorsykkel</option></select></label><label>Høyde (m)<input id="vHeight" type="number" min="0.5" max="6" step="0.01" placeholder="3.20"></label><label>Bredde (m)<input id="vWidth" type="number" min="0.5" max="5" step="0.01" placeholder="2.30"></label><label>Lengde (m)<input id="vLength" type="number" min="1" max="30" step="0.01" placeholder="7.50"></label><label>Totalvekt (tonn)<input id="vWeight" type="number" min="0.1" max="100" step="0.1" placeholder="3.5"></label><label>Med tilhenger<select id="vTrailer"><option value="no">Nei</option><option value="yes">Ja</option></select></label></div>
+<button id="vSave" type="button" class="primary wide">💾 Lagre kjøretøyprofil</button><p class="small" id="vStatus" role="status"></p>
+<label for="rulesCountry">Trafikkregler for land</label><select class="wide" id="rulesCountry"><option value="no">🇳🇴 Norge</option><option value="se">🇸🇪 Sverige</option><option value="fi">🇫🇮 Finland</option></select><div id="rulesContent" class="warning" aria-live="polite"></div>
+<label for="clearance">Sjekk oppgitt høydebegrensning (meter)</label><input id="clearance" type="number" min="0.5" max="10" step="0.01" placeholder="F.eks. 3.20"><button id="checkClearance" class="wide" type="button">⚠️ Sammenlign med kjøretøyhøyde</button><p id="clearanceResult" role="status" class="small"></p>
+<p class="small">Høydeverdier her tastes inn manuelt og kommer ikke fra Vegvesenet. Ingen automatisk høydevarsling eller offisiell ruteberegning er koblet til ennå. Sjekk alltid skilt, gjeldende regler og kjøretøyets faktiske mål.</p></section>
+<style>.vehicle-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}.vehicle-grid label{display:block;font-size:13px}.vehicle-grid input,.vehicle-grid select,#clearance{width:100%;box-sizing:border-box;padding:12px;margin-top:5px;border:1px solid #527184;border-radius:9px;background:#17344a;color:white;font:inherit}#rulesContent{margin:12px 0;line-height:1.55}#clearanceResult{font-weight:700}@media(max-width:420px){.vehicle-grid{grid-template-columns:1fr 1fr}}</style>
+<script>
+(()=>{
+const el=id=>document.getElementById(id),fields=['vType','vHeight','vWidth','vLength','vWeight','vTrailer'];
+const rules={no:{name:'Norge',alcohol:'0,2 ‰',winter:'Føreren må sikre tilstrekkelig veigrep. Særskilte krav til mønsterdybde gjelder om vinteren, med egne perioder i nord.',url:'https://www.vegvesen.no/'},se:{name:'Sverige',alcohol:'0,2 ‰',winter:'Vinterdekk kreves normalt 1. desember–31. mars når det er vinterføre; særregler kan gjelde for tunge kjøretøy.',url:'https://www.transportstyrelsen.se/'},fi:{name:'Finland',alcohol:'0,5 ‰',winter:'Vinterdekk kreves 1. november–31. mars når vær eller føre krever det.',url:'https://www.traficom.fi/'}};
+function renderRules(){let r=rules[el('rulesCountry').value];el('rulesContent').replaceChildren();let p=document.createElement('p');p.textContent=r.name+': Kjør på høyre side. Bruk kjørelys også på dagtid; sørg for riktig lys foran og bak ved mørke eller dårlig sikt. Promillegrense: '+r.alcohol+'. '+r.winter+' Følg alltid skiltet fartsgrense, bruk bilbelte og unngå håndholdt mobilbruk.';let a=document.createElement('a');a.href=r.url;a.target='_blank';a.rel='noopener noreferrer';a.textContent='Kontroller oppdaterte regler hos myndighetene ↗';el('rulesContent').append(p,a)}
+try{let data=JSON.parse(localStorage.getItem('aag-vehicle-v1')||'{}');fields.forEach(id=>{if(data[id]!=null)el(id).value=data[id]})}catch{}
+el('vSave').onclick=()=>{let data=Object.fromEntries(fields.map(id=>[id,el(id).value]));if(['vHeight','vWidth','vLength','vWeight'].some(id=>data[id]&&!Number.isFinite(Number(data[id])))){el('vStatus').textContent='Ugyldige mål';return}try{localStorage.setItem('aag-vehicle-v1',JSON.stringify(data));el('vStatus').textContent='Profil lagret lokalt på denne enheten.'}catch{el('vStatus').textContent='Kunne ikke lagre lokalt.'}};
+el('rulesCountry').onchange=renderRules;renderRules();
+el('checkClearance').onclick=()=>{let h=Number(el('vHeight').value),c=Number(el('clearance').value),out=el('clearanceResult');if(!h||!c||h<=0||c<=0){out.textContent='Oppgi både kjøretøyhøyde og skiltet høydebegrensning.';return}out.textContent=h>=c?'⛔ Kjøretøyet er like høyt eller høyere enn oppgitt grense. Ikke kjør videre.':'⚠️ Kjøretøyet er lavere enn oppgitt grense, men dette er ingen godkjenning av passasje. Kontroller skilting, last og faktisk fri høyde.'};
 })();
 </script>
 </body></html>
